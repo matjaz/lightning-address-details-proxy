@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -160,12 +159,9 @@ func main() {
 			return c.JSON(http.StatusBadRequest, &responseBody)
 		}
 
-		queryParams := url.Values{
-			"amount":  {c.QueryParam("amount")},
-			"comment":  {c.QueryParam("comment")},
-		}
+    invoiceParams := c.QueryParam("invoiceParams")
 
-		invoice, invoiceResponse, err := GetJSON(callback.(string) + "?" + queryParams.Encode());
+		invoice, invoiceResponse, err := GetJSON(callback.(string) + "?" + invoiceParams);
 		if err != nil {
 			e.Logger.Errorf("%v", err)
 		} else {
