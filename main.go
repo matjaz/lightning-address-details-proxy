@@ -1,21 +1,23 @@
 package main
 
 import (
-  "os"
-  "os/signal"
-  "context"
-  "fmt"
-  "github.com/labstack/echo/v4"
-  "github.com/labstack/echo/v4/middleware"
-  "log"
-  "time"
-  "net/http"
-  "strings"
-  "encoding/json"
-  "github.com/getsentry/sentry-go"
-  sentryecho "github.com/getsentry/sentry-go/echo"
-  "github.com/joho/godotenv"
-  "github.com/kelseyhightower/envconfig"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
+	"strings"
+	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentryecho "github.com/getsentry/sentry-go/echo"
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type Config struct {
@@ -29,6 +31,9 @@ type LNResponse struct {
     Keysend interface{} `json:"keysend"`
 }
 
+type GIResponse struct {
+	Invoice interface{} `json:"invoice"`
+}
 
 func GetJSON(url string) (interface{}, *http.Response, error) {
   response, err := http.Get(url)
@@ -121,6 +126,58 @@ func main() {
     if lnurlpResponse != nil && keysendResponse != nil && lnurlpResponse.StatusCode > 300 && keysendResponse.StatusCode > 300 {
       return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
     }
+
+    // default return response
+    return c.JSONPretty(http.StatusOK, &responseBody, "  ")
+  })
+
+  e.GET("/generate-invoice", func(c echo.Context) error {
+		responseBody := &GIResponse{}
+
+    ln := c.QueryParam("ln")
+    lnurlpUrl, _, err := ToUrl(ln)
+    if err != nil {
+      return c.JSON(http.StatusBadRequest, &responseBody)
+    }
+
+    lnurlp, lnurlpResponse, err := GetJSON(lnurlpUrl)
+    if err != nil {
+      e.Logger.Errorf("%v", err)
+    }
+
+    // if the request resulted in error return a bad request. something must be wrong with the ln address
+    if lnurlpResponse == nil {
+      return c.JSON(http.StatusBadRequest, &responseBody)
+    }
+    // if the response have no success
+    if lnurlpResponse != nil && lnurlpResponse.StatusCode > 300 {
+      return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
+    }
+		callback := lnurlp.(map[string]interface{})["callback"]
+
+		// if the lnurlp response doesn't have a callback to generate invoice
+		if callback == nil {
+			return c.JSON(http.StatusBadRequest, &responseBody)
+		}
+
+		queryParams := url.Values{
+			"amount":  {c.QueryParam("amount")},
+			"comment":  {c.QueryParam("comment")},
+		}
+
+		invoice, invoiceResponse, err := GetJSON(callback.(string) + "?" + queryParams.Encode());
+		if err != nil {
+			e.Logger.Errorf("%v", err)
+		} else {
+			responseBody.Invoice = invoice
+		}
+
+		if invoiceResponse == nil {
+			return c.JSON(http.StatusBadRequest, &responseBody)
+		}
+		if invoiceResponse != nil && invoiceResponse.StatusCode > 300 {
+			return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
+		}
 
     // default return response
     return c.JSONPretty(http.StatusOK, &responseBody, "  ")
