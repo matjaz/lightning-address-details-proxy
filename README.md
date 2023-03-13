@@ -1,6 +1,6 @@
 # lightning-address-details-proxy
 
-This proxy exists to simplify requests to lightning providers.
+This proxy exists to simplify requests to lightning address providers.
 
 - Many ln addresses don't support CORS, which means fetching the data directly in a browser environment will not always work.
 - Two requests are required to retrieve lnurlp and keysend data for a lightning address. The proxy will do these for you with a single request.
@@ -17,7 +17,7 @@ GET https://lnaddressproxy.getalby.com/lightning-address-details?ln=hello@getalb
 
 ## Requesting a LNURLp invoice
 
-`POST /generate-invoice?ln=<lightning_address>&amount=<amount_in_millisates>&comment=<http_encoded_comment>`
+`POST /generate-invoice?ln=<lightning_address>&amount=<amount_in_millisats>&comment=<http_encoded_comment>`
 
 ### Example
 
