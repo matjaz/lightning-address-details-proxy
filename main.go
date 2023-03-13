@@ -159,7 +159,8 @@ func main() {
 			return c.JSON(http.StatusBadRequest, &responseBody)
 		}
 
-    invoiceParams := c.QueryParam("invoiceParams")
+		c.QueryParams().Del("ln")
+		invoiceParams := c.QueryParams().Encode()
 
 		invoice, invoiceResponse, err := GetJSON(callback.(string) + "?" + invoiceParams);
 		if err != nil {
