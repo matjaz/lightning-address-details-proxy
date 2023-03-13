@@ -19,7 +19,7 @@ GET https://lnaddressproxy.getalby.com/lightning-address-details?ln=hello@getalb
 
 `GET /generate-invoice?ln=<lightning_address>&amount=<amount_in_millisats>&comment=<http_encoded_comment>`
 
-Please refer to the [https://github.com/lnurl/luds](LUDs) (LUD-06, LUD-12) etc for more information on what parameters can be passed.
+Please refer to the [https://github.com/lnurl/luds](LUDs) (LUD-06, LUD-12, LUD-18) and any other LUD that extends the functionality of LUD-06 for more information on what parameters can be passed.
 
 ### Example
 
