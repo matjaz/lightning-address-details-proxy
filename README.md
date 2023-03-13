@@ -17,11 +17,11 @@ GET https://lnaddressproxy.getalby.com/lightning-address-details?ln=hello@getalb
 
 ## Requesting a LNURLp invoice
 
-`POST /generate-invoice?ln=<lightning_address>&amount=<amount_in_millisats>&comment=<http_encoded_comment>`
+`GET /generate-invoice?ln=<lightning_address>&amount=<amount_in_millisats>&comment=<http_encoded_comment>`
 
 ### Example
 
-POST https://lnaddressproxy.getalby.com/generate-invoice?ln=hello@getalby.com&amount=1000&comment=Hello%20Alby!
+GET https://lnaddressproxy.getalby.com/generate-invoice?ln=hello@getalby.com&amount=1000&comment=Hello%20Alby!
 
 ---
 
