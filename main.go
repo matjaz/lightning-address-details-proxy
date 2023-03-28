@@ -28,6 +28,7 @@ type Config struct {
 type LNResponse struct {
     Lnurlp interface{} `json:"lnurlp"`
     Keysend interface{} `json:"keysend"`
+    Nostr interface{} `json:"nostr"`
 }
 
 type GIResponse struct {
@@ -50,16 +51,17 @@ func GetJSON(url string) (interface{}, *http.Response, error) {
   }
 }
 
-func ToUrl(identifier string) (string, string, error) {
+func ToUrl(identifier string) (string, string, string, error) {
   parts := strings.Split(identifier, "@")
   if len(parts) != 2 {
-    return "", "", fmt.Errorf("Invalid lightning address %s", identifier)
+    return "", "", "", fmt.Errorf("Invalid lightning address %s", identifier)
   }
 
   keysendUrl := fmt.Sprintf("https://%s/.well-known/keysend/%s", parts[1], parts[0])
   lnurlpUrl := fmt.Sprintf("https://%s/.well-known/lnurlp/%s", parts[1], parts[0])
+  nostrUrl := fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", parts[1], parts[0])
 
-  return lnurlpUrl, keysendUrl, nil
+  return lnurlpUrl, keysendUrl, nostrUrl, nil
 }
 
 func main() {
@@ -98,7 +100,7 @@ func main() {
     responseBody := &LNResponse{}
 
     ln := c.QueryParam("ln")
-    lnurlpUrl, keysendUrl, err := ToUrl(ln)
+    lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
     if err != nil {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
@@ -117,12 +119,19 @@ func main() {
       responseBody.Keysend = keysend
     }
 
-    // if both requests resulted in errors return a bad request. something must be wrong with the ln address
-    if lnurlpResponse == nil && keysendResponse == nil {
+    nostr, nostrResponse, err := GetJSON(nostrUrl)
+    if err != nil {
+      e.Logger.Errorf("%v", err)
+    } else {
+      responseBody.Nostr = nostr
+    }
+
+    // if the requests resulted in errors return a bad request. something must be wrong with the ln address
+    if lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
-    // if both response have no success
-    if lnurlpResponse != nil && keysendResponse != nil && lnurlpResponse.StatusCode > 300 && keysendResponse.StatusCode > 300 {
+    // if the responses have no success
+    if lnurlpResponse != nil && keysendResponse != nil && nostrResponse != nil && lnurlpResponse.StatusCode > 300 && keysendResponse.StatusCode > 300 && nostrResponse.StatusCode > 300 {
       return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
     }
 
@@ -134,7 +143,7 @@ func main() {
 		responseBody := &GIResponse{}
 
     ln := c.QueryParam("ln")
-    lnurlpUrl, _, err := ToUrl(ln)
+    lnurlpUrl, _, _, err := ToUrl(ln)
     if err != nil {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
