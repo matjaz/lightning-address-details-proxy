@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -35,10 +36,18 @@ type GIResponse struct {
 	Invoice interface{} `json:"invoice"`
 }
 
-func GetJSON(url string) (interface{}, *http.Response, error) {
-  response, err := http.Get(url)
+type GetJSONParams struct {
+	url string
+	wg *sync.WaitGroup
+}
+
+func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
+	if p.wg != nil {
+		defer p.wg.Done()
+	}
+  response, err := http.Get(p.url)
   if err != nil || response.StatusCode > 300  {
-    return nil, response, fmt.Errorf("No details: %s - %v", url, err)
+    return nil, response, fmt.Errorf("No details: %s - %v", p.url, err)
   } else {
     defer response.Body.Close()
     var j interface{}
@@ -97,7 +106,10 @@ func main() {
   }
 
   e.GET("/lightning-address-details", func(c echo.Context) error {
-    responseBody := &LNResponse{}
+		responseBody := &LNResponse{}
+		var wg sync.WaitGroup
+		var lnurlp, keysend, nostr interface{}
+		var lnurlpResponse, keysendResponse, nostrResponse *http.Response
 
     ln := c.QueryParam("ln")
     lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
@@ -105,34 +117,47 @@ func main() {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
-    lnurlp, lnurlpResponse, err := GetJSON(lnurlpUrl)
-    if err != nil {
-      e.Logger.Errorf("%v", err)
-    } else {
-      responseBody.Lnurlp = lnurlp
-    }
+		wg.Add(3)
 
-    keysend, keysendResponse, err := GetJSON(keysendUrl)
-    if err != nil {
-      e.Logger.Errorf("%v", err)
-    } else {
-      responseBody.Keysend = keysend
-    }
+		go func() {
+			lnurlp, lnurlpResponse, err = GetJSON(GetJSONParams{url: lnurlpUrl, wg: &wg})
+			if err != nil {
+				e.Logger.Errorf("%v", err)
+			} else {
+				responseBody.Lnurlp = lnurlp
+			}
+		}()
+	
+		go func() {
+			keysend, keysendResponse, err = GetJSON(GetJSONParams{url: keysendUrl, wg: &wg})
+			if err != nil {
+				e.Logger.Errorf("%v", err)
+			} else {
+				responseBody.Keysend = keysend
+			}
+		}()
 
-    nostr, nostrResponse, err := GetJSON(nostrUrl)
-    if err != nil {
-      e.Logger.Errorf("%v", err)
-    } else {
-      responseBody.Nostr = nostr
-    }
+		go func() {
+			nostr, nostrResponse, err = GetJSON(GetJSONParams{url: nostrUrl, wg: &wg})
+			if err != nil {
+				e.Logger.Errorf("%v", err)
+			} else {
+				responseBody.Nostr = nostr
+			}
+		}()
+
+		wg.Wait()
 
     // if the requests resulted in errors return a bad request. something must be wrong with the ln address
     if lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
     // if the responses have no success
-    if lnurlpResponse != nil && keysendResponse != nil && nostrResponse != nil && lnurlpResponse.StatusCode > 300 && keysendResponse.StatusCode > 300 && nostrResponse.StatusCode > 300 {
+    if lnurlpResponse != nil && lnurlpResponse.StatusCode > 300 {
       return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
+    }
+    if keysendResponse != nil && keysendResponse.StatusCode > 300 {
+      return c.JSONPretty(keysendResponse.StatusCode, &responseBody, "  ")
     }
 
     // default return response
@@ -148,7 +173,7 @@ func main() {
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
-    lnurlp, lnurlpResponse, err := GetJSON(lnurlpUrl)
+    lnurlp, lnurlpResponse, err := GetJSON(GetJSONParams{url: lnurlpUrl})
     if err != nil {
       e.Logger.Errorf("%v", err)
     }
@@ -171,7 +196,7 @@ func main() {
 		c.QueryParams().Del("ln")
 		invoiceParams := c.QueryParams().Encode()
 
-		invoice, invoiceResponse, err := GetJSON(callback.(string) + "?" + invoiceParams);
+		invoice, invoiceResponse, err := GetJSON(GetJSONParams{url: callback.(string) + "?" + invoiceParams});
 		if err != nil {
 			e.Logger.Errorf("%v", err)
 		} else {
