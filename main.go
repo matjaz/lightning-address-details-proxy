@@ -160,6 +160,7 @@ func main() {
       return c.JSONPretty(keysendResponse.StatusCode, &responseBody, "  ")
     }
 
+    c.Response().Header().Set(echo.HeaderCacheControl, lnurlpResponse.Header.Get("Cache-Control"))
     // default return response
     return c.JSONPretty(http.StatusOK, &responseBody, "  ")
   })
