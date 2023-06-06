@@ -28,3 +28,10 @@ GET https://lnaddressproxy.getalby.com/generate-invoice?ln=hello@getalby.com&amo
 ---
 
 This proxy is used by [Alby Tools](https://github.com/getAlby/alby-tools)
+
+
+# Development
+
+cp .env.example .env
+
+go run .

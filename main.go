@@ -149,15 +149,10 @@ func main() {
 		wg.Wait()
 
     // if the requests resulted in errors return a bad request. something must be wrong with the ln address
-    if lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil {
+    if ((lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil) ||
+		(lnurlpResponse.StatusCode >= 300 && keysendResponse.StatusCode >= 300 && nostrResponse.StatusCode >= 300)) {
+			e.Logger.Errorf("Could not retrieve details for lightning address %v", ln)
       return c.JSON(http.StatusBadRequest, &responseBody)
-    }
-    // if the responses have no success
-    if lnurlpResponse != nil && lnurlpResponse.StatusCode > 300 {
-      return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
-    }
-    if keysendResponse != nil && keysendResponse.StatusCode > 300 {
-      return c.JSONPretty(keysendResponse.StatusCode, &responseBody, "  ")
     }
 
     c.Response().Header().Set(echo.HeaderCacheControl, lnurlpResponse.Header.Get("Cache-Control"))
@@ -218,7 +213,7 @@ func main() {
   // Start server
   go func() {
     if err := e.Start(fmt.Sprintf(":%v", c.Port)); err != nil && err != http.ErrServerClosed {
-      e.Logger.Fatal("shutting down the server")
+      e.Logger.Fatal("shutting down the server", err)
     }
   }()
   // Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
