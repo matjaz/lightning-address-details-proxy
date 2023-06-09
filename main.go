@@ -26,10 +26,16 @@ type Config struct {
   Port                  int    `envconfig:"PORT" default:"3000"`
 }
 
+type ErrorResponse struct {
+	Status int
+	Message string
+}
+
 type LNResponse struct {
     Lnurlp interface{} `json:"lnurlp"`
     Keysend interface{} `json:"keysend"`
     Nostr interface{} `json:"nostr"`
+    Error ErrorResponse `json:"error"`
 }
 
 type GIResponse struct {
@@ -110,6 +116,7 @@ func main() {
 		var wg sync.WaitGroup
 		var lnurlp, keysend, nostr interface{}
 		var lnurlpResponse, keysendResponse, nostrResponse *http.Response
+		var lnurlpError error
 
     ln := c.QueryParam("ln")
     lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
@@ -120,9 +127,9 @@ func main() {
 		wg.Add(3)
 
 		go func() {
-			lnurlp, lnurlpResponse, err = GetJSON(GetJSONParams{url: lnurlpUrl, wg: &wg})
-			if err != nil {
-				e.Logger.Errorf("%v", err)
+			lnurlp, lnurlpResponse, lnurlpError = GetJSON(GetJSONParams{url: lnurlpUrl, wg: &wg})
+			if lnurlpError != nil {
+				e.Logger.Errorf("%v", lnurlpError)
 			} else {
 				responseBody.Lnurlp = lnurlp
 			}
@@ -152,6 +159,10 @@ func main() {
     if ((lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil) ||
 		(lnurlpResponse.StatusCode >= 300 && keysendResponse.StatusCode >= 300 && nostrResponse.StatusCode >= 300)) {
 			e.Logger.Errorf("Could not retrieve details for lightning address %v", ln)
+			responseBody.Error = ErrorResponse {
+				Status: lnurlpResponse.StatusCode,
+				Message: lnurlpError.Error(),
+			}
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
