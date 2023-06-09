@@ -27,8 +27,8 @@ type Config struct {
 }
 
 type ErrorResponse struct {
-	Status int
-	Message string
+	Status int `json:"status"`
+	Message string `json:"message"`
 }
 
 type LNResponse struct {
