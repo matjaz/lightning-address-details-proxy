@@ -31,11 +31,17 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
+type ErrorsResponse struct {
+	Lnurlp *ErrorResponse `json:"lnurlp"`
+	Keysend *ErrorResponse `json:"keysend"`
+	Nostr *ErrorResponse `json:"nostr"`
+}
+
 type LNResponse struct {
     Lnurlp interface{} `json:"lnurlp"`
     Keysend interface{} `json:"keysend"`
     Nostr interface{} `json:"nostr"`
-    Error ErrorResponse `json:"error"`
+    Errors ErrorsResponse `json:"errors"`
 }
 
 type GIResponse struct {
@@ -116,7 +122,7 @@ func main() {
 		var wg sync.WaitGroup
 		var lnurlp, keysend, nostr interface{}
 		var lnurlpResponse, keysendResponse, nostrResponse *http.Response
-		var lnurlpError error
+		var lnurlpError, keysendError, nostrError error
 
     ln := c.QueryParam("ln")
     lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
@@ -136,18 +142,18 @@ func main() {
 		}()
 	
 		go func() {
-			keysend, keysendResponse, err = GetJSON(GetJSONParams{url: keysendUrl, wg: &wg})
-			if err != nil {
-				e.Logger.Errorf("%v", err)
+			keysend, keysendResponse, keysendError = GetJSON(GetJSONParams{url: keysendUrl, wg: &wg})
+			if keysendError != nil {
+				e.Logger.Errorf("%v", keysendError)
 			} else {
 				responseBody.Keysend = keysend
 			}
 		}()
 
 		go func() {
-			nostr, nostrResponse, err = GetJSON(GetJSONParams{url: nostrUrl, wg: &wg})
-			if err != nil {
-				e.Logger.Errorf("%v", err)
+			nostr, nostrResponse, nostrError = GetJSON(GetJSONParams{url: nostrUrl, wg: &wg})
+			if nostrError != nil {
+				e.Logger.Errorf("%v", nostrError)
 			} else {
 				responseBody.Nostr = nostr
 			}
@@ -155,14 +161,29 @@ func main() {
 
 		wg.Wait()
 
-    // if the requests resulted in errors return a bad request. something must be wrong with the ln address
-    if ((lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil) ||
-		(lnurlpResponse.StatusCode >= 300 && keysendResponse.StatusCode >= 300 && nostrResponse.StatusCode >= 300)) {
-			e.Logger.Errorf("Could not retrieve details for lightning address %v", ln)
-			responseBody.Error = ErrorResponse {
+		responseBody.Errors = ErrorsResponse {}
+		if (lnurlpError != nil) {
+			responseBody.Errors.Lnurlp = &ErrorResponse {
 				Status: lnurlpResponse.StatusCode,
 				Message: lnurlpError.Error(),
 			}
+		}
+		if (keysendError != nil) {
+			responseBody.Errors.Keysend = &ErrorResponse {
+				Status: keysendResponse.StatusCode,
+				Message: keysendError.Error(),
+			}
+		}
+		if (nostrError != nil) {
+			responseBody.Errors.Nostr = &ErrorResponse {
+				Status: nostrResponse.StatusCode,
+				Message: nostrError.Error(),
+			}
+		}
+
+    // if the requests resulted in errors return a bad request. something must be wrong with the ln address
+    if (lnurlpError != nil && keysendError != nil && nostrError != nil) {
+			e.Logger.Errorf("Could not retrieve details for lightning address %v", ln)
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
