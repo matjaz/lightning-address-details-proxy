@@ -82,7 +82,7 @@ func main() {
   // Load configruation from environment variables
   err := godotenv.Load(".env")
   if err != nil {
-		logger.Fatalf("Failed to load .env file: %v", err)
+		logger.Infof("Failed to load .env file: %v", err)
   }
   err = envconfig.Process("", c)
   if err != nil {
@@ -120,7 +120,7 @@ func main() {
     lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
     if err != nil {
 			logger.WithFields(log.Fields{
-				"lightningAddress": ln,
+				"lightning_address": ln,
 			}).Errorf("Failed to parse urls: %v", err)
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
@@ -131,8 +131,8 @@ func main() {
 			lnurlp, lnurlpResponse, err = GetJSON(GetJSONParams{url: lnurlpUrl, wg: &wg})
 			if err != nil {
 				logger.WithFields(log.Fields{
-					"lightningAddress": ln,
-					"lnurlpURL": lnurlpUrl,
+					"lightning_address": ln,
+					"lnurlp_url": lnurlpUrl,
 				}).Errorf("Failed to fetch lnurlp response: %v", err)
 			} else {
 				responseBody.Lnurlp = lnurlp
@@ -143,8 +143,8 @@ func main() {
 			keysend, keysendResponse, err = GetJSON(GetJSONParams{url: keysendUrl, wg: &wg})
 			if err != nil {
 				logger.WithFields(log.Fields{
-					"lightningAddress": ln,
-					"keysendURL": keysendUrl,
+					"lightning_address": ln,
+					"keysend_url": keysendUrl,
 				}).Errorf("Failed to fetch keysend response: %v", err)
 			} else {
 				responseBody.Keysend = keysend
@@ -155,8 +155,8 @@ func main() {
 			nostr, nostrResponse, err = GetJSON(GetJSONParams{url: nostrUrl, wg: &wg})
 			if err != nil {
 				logger.WithFields(log.Fields{
-					"lightningAddress": ln,
-					"nostrURL": nostrUrl,
+					"lightning_address": ln,
+					"nostr_url": nostrUrl,
 				}).Errorf("Failed to fetch nostr response: %v", err)
 			} else {
 				responseBody.Nostr = nostr
@@ -169,7 +169,7 @@ func main() {
     if ((lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil) ||
 		(lnurlpResponse.StatusCode >= 300 && keysendResponse.StatusCode >= 300 && nostrResponse.StatusCode >= 300)) {
 			logger.WithFields(log.Fields{
-				"lightningAddress": ln,
+				"lightning_address": ln,
 			}).Errorf("Could not retrieve details for lightning address %v", ln)
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
@@ -191,8 +191,8 @@ func main() {
     lnurlp, lnurlpResponse, err := GetJSON(GetJSONParams{url: lnurlpUrl})
     if err != nil {
 			logger.WithFields(log.Fields{
-				"lightningAddress": ln,
-				"lnurlpURL": lnurlpUrl,
+				"lightning_address": ln,
+				"lnurlp_url": lnurlpUrl,
 			}).Errorf("Failed to fetch lnurlp response: %v", err)
     }
 
@@ -217,7 +217,7 @@ func main() {
 		invoice, invoiceResponse, err := GetJSON(GetJSONParams{url: callback.(string) + "?" + invoiceParams});
 		if err != nil {
 			logger.WithFields(log.Fields{
-				"lightningAddress": ln,
+				"lightning_address": ln,
 			}).Errorf("Failed to fetch invoice: %v", err)
 		} else {
 			responseBody.Invoice = invoice
