@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,12 +11,14 @@ import (
 	"sync"
 	"time"
 
+	echologrus "github.com/davrux/echo-logrus/v4"
 	"github.com/getsentry/sentry-go"
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -75,20 +76,24 @@ func ToUrl(identifier string) (string, string, string, error) {
 
 func main() {
   c := &Config{}
+	logger := log.New()
+	logger.SetFormatter(&log.JSONFormatter{})
 
   // Load configruation from environment variables
   err := godotenv.Load(".env")
   if err != nil {
-    fmt.Println("Failed to load .env file")
+		logger.Infof("Failed to load .env file: %v", err)
   }
   err = envconfig.Process("", c)
   if err != nil {
-    log.Fatalf("Error loading environment variables: %v", err)
+    logger.Fatalf("Error loading environment variables: %v", err)
   }
 
   e := echo.New()
   e.HideBanner = true
-  e.Use(middleware.Logger())
+	echologrus.Logger = logger
+	e.Use(echologrus.Middleware())
+
   e.Use(middleware.Recover())
   e.Use(middleware.RequestID())
   e.Use(middleware.CORS())
@@ -114,6 +119,9 @@ func main() {
     ln := c.QueryParam("ln")
     lnurlpUrl, keysendUrl, nostrUrl, err := ToUrl(ln)
     if err != nil {
+			logger.WithFields(log.Fields{
+				"lightning_address": ln,
+			}).Errorf("Failed to parse urls: %v", err)
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
@@ -122,7 +130,10 @@ func main() {
 		go func() {
 			lnurlp, lnurlpResponse, err = GetJSON(GetJSONParams{url: lnurlpUrl, wg: &wg})
 			if err != nil {
-				e.Logger.Errorf("%v", err)
+				logger.WithFields(log.Fields{
+					"lightning_address": ln,
+					"lnurlp_url": lnurlpUrl,
+				}).Errorf("Failed to fetch lnurlp response: %v", err)
 			} else {
 				responseBody.Lnurlp = lnurlp
 			}
@@ -131,7 +142,10 @@ func main() {
 		go func() {
 			keysend, keysendResponse, err = GetJSON(GetJSONParams{url: keysendUrl, wg: &wg})
 			if err != nil {
-				e.Logger.Errorf("%v", err)
+				logger.WithFields(log.Fields{
+					"lightning_address": ln,
+					"keysend_url": keysendUrl,
+				}).Errorf("Failed to fetch keysend response: %v", err)
 			} else {
 				responseBody.Keysend = keysend
 			}
@@ -140,7 +154,10 @@ func main() {
 		go func() {
 			nostr, nostrResponse, err = GetJSON(GetJSONParams{url: nostrUrl, wg: &wg})
 			if err != nil {
-				e.Logger.Errorf("%v", err)
+				logger.WithFields(log.Fields{
+					"lightning_address": ln,
+					"nostr_url": nostrUrl,
+				}).Errorf("Failed to fetch nostr response: %v", err)
 			} else {
 				responseBody.Nostr = nostr
 			}
@@ -151,7 +168,9 @@ func main() {
     // if the requests resulted in errors return a bad request. something must be wrong with the ln address
     if ((lnurlpResponse == nil && keysendResponse == nil && nostrResponse == nil) ||
 		(lnurlpResponse.StatusCode >= 300 && keysendResponse.StatusCode >= 300 && nostrResponse.StatusCode >= 300)) {
-			e.Logger.Errorf("Could not retrieve details for lightning address %v", ln)
+			logger.WithFields(log.Fields{
+				"lightning_address": ln,
+			}).Errorf("Could not retrieve details for lightning address %v", ln)
       return c.JSON(http.StatusBadRequest, &responseBody)
     }
 
@@ -171,7 +190,10 @@ func main() {
 
     lnurlp, lnurlpResponse, err := GetJSON(GetJSONParams{url: lnurlpUrl})
     if err != nil {
-      e.Logger.Errorf("%v", err)
+			logger.WithFields(log.Fields{
+				"lightning_address": ln,
+				"lnurlp_url": lnurlpUrl,
+			}).Errorf("Failed to fetch lnurlp response: %v", err)
     }
 
     // if the request resulted in error return a bad request. something must be wrong with the ln address
@@ -194,7 +216,9 @@ func main() {
 
 		invoice, invoiceResponse, err := GetJSON(GetJSONParams{url: callback.(string) + "?" + invoiceParams});
 		if err != nil {
-			e.Logger.Errorf("%v", err)
+			logger.WithFields(log.Fields{
+				"lightning_address": ln,
+			}).Errorf("Failed to fetch invoice: %v", err)
 		} else {
 			responseBody.Invoice = invoice
 		}
@@ -213,7 +237,7 @@ func main() {
   // Start server
   go func() {
     if err := e.Start(fmt.Sprintf(":%v", c.Port)); err != nil && err != http.ErrServerClosed {
-      e.Logger.Fatal("shutting down the server", err)
+      logger.Fatal("shutting down the server", err)
     }
   }()
   // Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
@@ -224,7 +248,7 @@ func main() {
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   if err := e.Shutdown(ctx); err != nil {
-    e.Logger.Fatal(err)
+    logger.Fatal(err)
   }
 
 }
