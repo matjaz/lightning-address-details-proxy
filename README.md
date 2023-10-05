@@ -13,7 +13,7 @@ This proxy exists to simplify requests to lightning address providers.
 
 ### Example
 
-GET https://lnaddressproxy.getalby.com/lightning-address-details?ln=hello@getalby.com
+GET https://api.getalby.com/lnurl/lightning-address-details?ln=hello@getalby.com
 
 ## Requesting a LNURLp invoice
 
@@ -23,7 +23,7 @@ Please refer to the [https://github.com/lnurl/luds](LUDs) (LUD-06, LUD-12, LUD-1
 
 ### Example
 
-GET https://lnaddressproxy.getalby.com/generate-invoice?ln=hello@getalby.com&amount=1000&comment=Hello%20Alby!
+GET https://api.getalby.com/lnurl/generate-invoice?ln=hello@getalby.com&amount=1000&comment=Hello%20Alby!
 
 ---
 
