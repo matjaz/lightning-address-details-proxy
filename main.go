@@ -71,6 +71,13 @@ func ToUrl(identifier string) (string, string, string, error) {
   lnurlpUrl := fmt.Sprintf("https://%s/.well-known/lnurlp/%s", parts[1], parts[0])
   nostrUrl := fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", parts[1], parts[0])
 
+  urlPrefix := "https://getalby.com"
+  replacement := "http://alby-mainnet-getalbycom"
+
+  keysendUrl = strings.Replace(keysendUrl, urlPrefix, replacement, 1)
+  lnurlpUrl = strings.Replace(lnurlpUrl, urlPrefix, replacement, 1)
+  nostrUrl = strings.Replace(nostrUrl, urlPrefix, replacement, 1)
+
   return lnurlpUrl, keysendUrl, nostrUrl, nil
 }
 
