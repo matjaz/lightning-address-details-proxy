@@ -46,6 +46,12 @@ func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
 	if p.wg != nil {
 		defer p.wg.Done()
 	}
+
+  urlPrefix := "https://getalby.com"
+  replacement := "http://alby-mainnet-getalbycom"
+
+  p.url = strings.Replace(p.url, urlPrefix, replacement, 1)
+
   response, err := http.Get(p.url)
   if err != nil || response.StatusCode > 300  {
     return nil, response, fmt.Errorf("No details: %s - %v", p.url, err)
@@ -70,13 +76,6 @@ func ToUrl(identifier string) (string, string, string, error) {
   keysendUrl := fmt.Sprintf("https://%s/.well-known/keysend/%s", parts[1], parts[0])
   lnurlpUrl := fmt.Sprintf("https://%s/.well-known/lnurlp/%s", parts[1], parts[0])
   nostrUrl := fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", parts[1], parts[0])
-
-  urlPrefix := "https://getalby.com"
-  replacement := "http://alby-mainnet-getalbycom"
-
-  keysendUrl = strings.Replace(keysendUrl, urlPrefix, replacement, 1)
-  lnurlpUrl = strings.Replace(lnurlpUrl, urlPrefix, replacement, 1)
-  nostrUrl = strings.Replace(nostrUrl, urlPrefix, replacement, 1)
 
   return lnurlpUrl, keysendUrl, nostrUrl, nil
 }
