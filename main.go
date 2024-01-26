@@ -50,9 +50,9 @@ func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
   urlPrefix := "https://getalby.com"
   replacement := "http://alby-mainnet-getalbycom"
 
-  p.url = strings.Replace(p.url, urlPrefix, replacement, 1)
+	url := strings.Replace(p.url, urlPrefix, replacement, 1)
 
-  response, err := http.Get(p.url)
+	response, err := http.Get(url)
   if err != nil || response.StatusCode > 300  {
     return nil, response, fmt.Errorf("No details: %s - %v", p.url, err)
   } else {
