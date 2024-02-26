@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -54,13 +55,13 @@ func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
 
 	response, err := http.Get(url)
 	if err != nil || response.StatusCode > 300 {
-		return nil, response, fmt.Errorf("No details: %s - %v", p.url, err)
+		return nil, response, fmt.Errorf("no details: %s - %v", p.url, err)
 	} else {
 		defer response.Body.Close()
 		var j interface{}
 		err = json.NewDecoder(response.Body).Decode(&j)
 		if err != nil {
-			return nil, response, fmt.Errorf("Invalid JSON: %v", err)
+			return nil, response, fmt.Errorf("invalid JSON: %v", err)
 		} else {
 			return j, response, nil
 		}
@@ -70,7 +71,7 @@ func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
 func ToUrl(identifier string) (string, string, string, error) {
 	parts := strings.Split(identifier, "@")
 	if len(parts) != 2 {
-		return "", "", "", fmt.Errorf("Invalid lightning address %s", identifier)
+		return "", "", "", fmt.Errorf("invalid lightning address %s", identifier)
 	}
 
 	keysendUrl := fmt.Sprintf("https://%s/.well-known/keysend/%s", parts[1], parts[0])
@@ -218,9 +219,22 @@ func main() {
 		}
 
 		c.QueryParams().Del("ln")
-		invoiceParams := c.QueryParams().Encode()
-
-		invoice, invoiceResponse, err := GetJSON(GetJSONParams{url: callback.(string) + "?" + invoiceParams})
+		invoiceParams := c.QueryParams()
+		invoiceUrl, err := url.Parse(callback.(string))
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"lightning_address": ln,
+			}).Errorf("Failed to parse callback url: %v", err)
+			return c.JSON(http.StatusBadRequest, &responseBody)
+		}
+		values := invoiceUrl.Query()
+		for key, val := range invoiceParams {
+			for _, v := range val {
+				values.Add(key, v)
+			}
+		}
+		invoiceUrl.RawQuery = values.Encode()
+		invoice, invoiceResponse, err := GetJSON(GetJSONParams{url: invoiceUrl.String()})
 		if err != nil {
 			logger.WithFields(log.Fields{
 				"lightning_address": ln,
