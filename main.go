@@ -54,7 +54,7 @@ func GetJSON(p GetJSONParams) (interface{}, *http.Response, error) {
 	url := strings.Replace(p.url, urlPrefix, replacement, 1)
 
 	response, err := http.Get(url)
-	if err != nil || response.StatusCode > 300 {
+	if err != nil || response.StatusCode >= 300 {
 		return nil, response, fmt.Errorf("no details: %s - %v", p.url, err)
 	} else {
 		defer response.Body.Close()
@@ -208,7 +208,7 @@ func main() {
 			return c.JSON(http.StatusBadRequest, &responseBody)
 		}
 		// if the response have no success
-		if lnurlpResponse != nil && lnurlpResponse.StatusCode > 300 {
+		if lnurlpResponse != nil && lnurlpResponse.StatusCode >= 300 {
 			return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
 		}
 		callback := lnurlp.(map[string]interface{})["callback"]
@@ -246,7 +246,7 @@ func main() {
 		if invoiceResponse == nil {
 			return c.JSON(http.StatusBadRequest, &responseBody)
 		}
-		if invoiceResponse != nil && invoiceResponse.StatusCode > 300 {
+		if invoiceResponse != nil && invoiceResponse.StatusCode >= 300 {
 			return c.JSONPretty(lnurlpResponse.StatusCode, &responseBody, "  ")
 		}
 
